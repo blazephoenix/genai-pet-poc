@@ -6,7 +6,7 @@ import { useGame, useGameEvents } from "@/lib/game/provider";
 export function ActionsBar(): JSX.Element {
   const { state, dispatch } = useGame();
   const events = useGameEvents();
-  const canFeed: boolean = state.player.currentView === "Kitchen" && state.pet.currentRoom === "Kitchen";
+  const canFeed: boolean = state.player.currentView === state.pet.currentRoom;
   const canPlay: boolean = state.player.currentView === "Living Room" && state.pet.currentRoom === "Living Room";
 
   return (

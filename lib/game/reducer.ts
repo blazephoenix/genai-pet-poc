@@ -13,10 +13,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, pet: { currentRoom: action.room } };
     }
     case "FEED": {
-      // Guard: must be in Kitchen and pet in Kitchen
-      const isInKitchen: boolean =
-        state.player.currentView === "Kitchen" && state.pet.currentRoom === "Kitchen";
-      if (!isInKitchen) {
+      // Guard: player and pet must be in the same room
+      const canFeedHere: boolean = state.player.currentView === state.pet.currentRoom;
+      if (!canFeedHere) {
         return state;
       }
       // Triggering animation is a UI concern; reducer remains pure.
