@@ -58,8 +58,9 @@ export function GenerationForm(): React.ReactElement {
             img.src = dataUrl;
           });
 
-          const maxW = 1024; // smaller to reduce payload
-          const maxH = 576;
+          // Enforce a safe size for all rooms
+          const maxW = 896;
+          const maxH = 504;
           const { width, height } = loaded;
           const ratio = Math.min(maxW / Math.max(1, width), maxH / Math.max(1, height), 1);
           const targetW = Math.max(1, Math.floor(width * ratio));
@@ -78,9 +79,14 @@ export function GenerationForm(): React.ReactElement {
             return dataUrl;
           }
           ctx.drawImage(loaded, 0, 0, targetW, targetH);
-          // Use PNG to preserve crisp vector edges
-          const compressed = canvas.toDataURL("image/png");
-          return compressed;
+          // Prefer PNG for crisp vectors; if still large, fallback to WebP
+          const pngData = canvas.toDataURL("image/png");
+          // Rough check: if > 2.5MB, try webp at quality 0.82
+          if (pngData.length > 2_500_000 * 1.37) { // base64 overhead factor ~1.37
+            const webp = canvas.toDataURL("image/webp", 0.82);
+            return webp;
+          }
+          return pngData;
         } catch {
           return dataUrl;
         }
@@ -179,8 +185,8 @@ export function GenerationForm(): React.ReactElement {
       {error.length > 0 && <span className="text-red-300">{error}</span>}
       <MaskEditor
         open={maskEditorOpen}
-        width={1024}
-        height={576}
+        width={896}
+        height={504}
         initialMask={userMask}
         onClose={(result) => {
           setMaskEditorOpen(false);

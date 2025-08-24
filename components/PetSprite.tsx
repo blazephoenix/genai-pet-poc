@@ -2,14 +2,14 @@
 
 import React from "react";
 
-export function PetSprite(): JSX.Element {
+export function PetSprite({ className }: { className?: string }): JSX.Element {
   return (
     <img
       src="/assets/cat.svg"
       alt="Pet"
       width={120}
       height={120}
-      className="select-none"
+      className={`select-none ${className ?? ""}`}
       draggable={false}
     />
   );

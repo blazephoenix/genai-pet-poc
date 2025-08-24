@@ -87,8 +87,8 @@ export default async function handler(
       model: useEdit ? openai.image("gpt-image-1") : openai.image("dall-e-3"),
       prompt: composedPrompt,
       // Prefer aspect ratio; fallback to size when provided
-      aspectRatio: typeof aspectRatio === "string" && aspectRatio.length > 0 ? aspectRatio as `${number}:${number}` : undefined,
-      size: typeof size === "string" && size.length > 0 ? size as `${number}x${number}` : undefined,
+      aspectRatio: useEdit ? undefined : (typeof aspectRatio === "string" && aspectRatio.length > 0 ? aspectRatio as `${number}:${number}` : undefined),
+      size: useEdit ? ("1024x1024") : (typeof size === "string" && size.length > 0 ? size as `${number}x${number}` : undefined),
       seed,
       providerOptions,
     });

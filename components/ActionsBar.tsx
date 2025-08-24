@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
-import { useGame } from "@/lib/game/provider";
+import { useGame, useGameEvents } from "@/lib/game/provider";
 
 export function ActionsBar(): JSX.Element {
   const { state, dispatch } = useGame();
+  const events = useGameEvents();
   const canFeed: boolean = state.player.currentView === "Kitchen" && state.pet.currentRoom === "Kitchen";
   const canPlay: boolean = state.player.currentView === "Living Room" && state.pet.currentRoom === "Living Room";
 
@@ -13,7 +14,10 @@ export function ActionsBar(): JSX.Element {
       <button
         type="button"
         className="px-3 py-2 rounded border border-white/30 disabled:opacity-50"
-        onClick={() => dispatch({ type: "FEED" })}
+        onClick={() => {
+          dispatch({ type: "FEED" });
+          events.dispatchEvent(new CustomEvent("feed"));
+        }}
         disabled={!canFeed}
       >
         Feed

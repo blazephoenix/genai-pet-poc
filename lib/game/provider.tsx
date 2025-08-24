@@ -13,6 +13,9 @@ interface GameContextValue {
 
 const GameContext = React.createContext<GameContextValue | undefined>(undefined);
 
+// Simple UI event bus for cross-component effects (e.g., feed animation)
+const GameEventsContext = React.createContext<EventTarget | undefined>(undefined);
+
 /** Safely derive the next random room (excluding current). */
 function selectNextRoom(current: RoomName): RoomName {
   const rooms: ReadonlyArray<RoomName> = ["Living Room", "Kitchen", "Bedroom"];
@@ -36,12 +39,24 @@ export function useGame(): GameContextValue {
   return ctx;
 }
 
-export function GameProvider({ children }: { children: React.ReactNode }): JSX.Element {
+export function useGameEvents(): EventTarget {
+  const events = React.useContext(GameEventsContext);
+  if (events === undefined) {
+    throw new Error("useGameEvents must be used within GameProvider");
+  }
+  return events;
+}
+
+export function GameProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   // Use useState + manual dispatch wrapper to avoid SSR/CSR hydration mismatch
   const [state, setState] = React.useState<GameState>(initialGameState);
   const dispatch = React.useCallback((action: GameAction): void => {
     setState((prev) => gameReducer(prev, action));
   }, []);
+  const eventsRef = React.useRef<EventTarget | null>(null);
+  if (eventsRef.current === null) {
+    eventsRef.current = new EventTarget();
+  }
 
   // After mount, attempt to hydrate from localStorage (client-only)
   React.useEffect(() => {
@@ -105,8 +120,14 @@ export function GameProvider({ children }: { children: React.ReactNode }): JSX.E
     };
   }, [dispatch]);
 
-  const value: GameContextValue = React.useMemo(() => ({ state, dispatch }), [state]);
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  const value: GameContextValue = React.useMemo(() => ({ state, dispatch }), [state, dispatch]);
+  return (
+    <GameContext.Provider value={value}>
+      <GameEventsContext.Provider value={eventsRef.current}>
+        {children}
+      </GameEventsContext.Provider>
+    </GameContext.Provider>
+  );
 }
 
 // Re-export services for UI usage where appropriate
