@@ -10,7 +10,11 @@ export interface TimerService {
 
 /** Generates background images for rooms using a generative model. Returns URL or data URI. */
 export interface AIImageService {
-  generateRoomImage(prompt: string, room: RoomName): Promise<string>;
+  generateRoomImage(
+    prompt: string,
+    room: RoomName,
+    options?: { sourceImage?: string; mask?: string; strength?: number; seed?: number }
+  ): Promise<string>;
 }
 
 /** Simple persistence layer for local saves. */
@@ -67,7 +71,7 @@ export function createLocalStorageService(storageKey: string): StorageService {
     try {
       const serialized: string = JSON.stringify(state);
       window.localStorage.setItem(storageKey, serialized);
-    } catch (error) {
+    } catch {
       // Silently ignore to avoid crashing UI; optionally report elsewhere
     }
   };
@@ -83,7 +87,7 @@ export function createLocalStorageService(storageKey: string): StorageService {
         return parsed as GameState;
       }
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -91,7 +95,7 @@ export function createLocalStorageService(storageKey: string): StorageService {
   const clear = (): void => {
     try {
       window.localStorage.removeItem(storageKey);
-    } catch (error) {
+    } catch {
       // no-op
     }
   };
@@ -104,21 +108,41 @@ export function createLocalStorageService(storageKey: string): StorageService {
  * Replace with a real API integration in the future.
  */
 export function createMockAIImageService(): AIImageService {
-  const generateRoomImage = async (prompt: string, room: RoomName): Promise<string> => {
+  const generateRoomImage = async (
+    prompt: string,
+    room: RoomName,
+    options?: { sourceImage?: string; mask?: string; strength?: number; seed?: number }
+  ): Promise<string> => {
     const normalizedPrompt: string = String(prompt ?? "").trim();
     if (normalizedPrompt.length === 0) {
       throw new Error("Prompt cannot be empty");
     }
-    // Return existing asset to demonstrate flow; callers dispatch UPDATE_ROOM_LOOK afterwards
-    // Using a small SVG data URL to satisfy type and rendering
-    const svg: string = [
-      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\">",
-      `<rect width=\"64\" height=\"64\" fill=\"#d9eaff\" />`,
-      `<text x=\"50%\" y=\"50%\" dominant-baseline=\"middle\" text-anchor=\"middle\" font-size=\"8\" fill=\"#333\">${room}</text>`,
-      "</svg>"
-    ].join("");
-    const dataUrl: string = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-    return Promise.resolve(dataUrl);
+    // Call server API route for real generation
+    const response = await fetch("/api/generate-room-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: normalizedPrompt,
+        room,
+        aspectRatio: "16:9",
+        sourceImage: options?.sourceImage,
+        mask: options?.mask,
+        seed: options?.seed,
+        strength: options?.strength,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error("Image generation failed");
+    }
+    const data: unknown = await response.json();
+    if (
+      data === null ||
+      typeof data !== "object" ||
+      typeof (data as Record<string, unknown>)["image"] !== "string"
+    ) {
+      throw new Error("Invalid image response");
+    }
+    return (data as { image: string }).image;
   };
   return { generateRoomImage };
 }
