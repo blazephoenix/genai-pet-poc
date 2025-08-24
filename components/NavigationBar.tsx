@@ -6,7 +6,7 @@ import { useGame } from "@/lib/game/provider";
 
 const ROOMS: ReadonlyArray<RoomName> = ["Living Room", "Kitchen", "Bedroom"];
 
-export function NavigationBar(): JSX.Element {
+export function NavigationBar(): React.ReactElement {
   const { state, dispatch } = useGame();
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-20 flex gap-2 bg-black/40 backdrop-blur text-white px-3 py-2 rounded shadow">

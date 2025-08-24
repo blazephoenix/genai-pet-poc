@@ -9,7 +9,7 @@ interface PetPosition {
   yPercent: number; // 0-100
 }
 
-export function RoomView(): JSX.Element {
+export function RoomView(): React.ReactElement {
   const { state } = useGame();
   const events = useGameEvents();
   const bg = state.house.rooms[state.player.currentView].backgroundImage;

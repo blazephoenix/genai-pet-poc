@@ -2,7 +2,7 @@
 
 import React from "react";
 
-export function PetSprite({ className }: { className?: string }): JSX.Element {
+export function PetSprite({ className }: { className?: string }): React.ReactElement {
   return (
     <img
       src="/assets/cat.svg"

@@ -3,7 +3,7 @@
 import React from "react";
 import { useGame, useGameEvents } from "@/lib/game/provider";
 
-export function ActionsBar(): JSX.Element {
+export function ActionsBar(): React.ReactElement {
   const { state, dispatch } = useGame();
   const events = useGameEvents();
   const canFeed: boolean = state.player.currentView === state.pet.currentRoom;

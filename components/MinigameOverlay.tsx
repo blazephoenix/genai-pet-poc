@@ -6,7 +6,7 @@ import type { HideAndSeekObject } from "@/lib/game/types";
 
 const OBJECTS: ReadonlyArray<HideAndSeekObject> = ["Couch", "Lamp", "Rug"];
 
-export function MinigameOverlay(): JSX.Element | null {
+export function MinigameOverlay(): React.ReactElement | null {
   const { state, dispatch } = useGame();
   const mg = state.minigame;
   if (mg === null) {
