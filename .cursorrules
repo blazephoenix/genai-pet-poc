@@ -1,0 +1,72 @@
+AI Rules: Virtual Pet Proof of Concept (v0.2)
+
+## 1. Core Entities & State
+
+### Pet
+- **currentRoom**
+  - **Type**: String
+  - **Possible Values**: "Living Room", "Kitchen", "Bedroom"
+  - **Initial Value**: "Living Room"
+
+### Player
+- **currentView**
+  - **Type**: String
+  - **Possible Values**: "Living Room", "Kitchen", "Bedroom"
+  - **Initial Value**: "Living Room"
+
+### House
+- **rooms**: Object keyed by room name with background state per room
+  - "Living Room": { backgroundImage: URL_or_Base64_String }
+  - "Kitchen": { backgroundImage: URL_or_Base64_String }
+  - "Bedroom": { backgroundImage: URL_or_Base64_String }
+
+## 2. Time-Based Rules (Pet's Autonomous Actions)
+
+### movePet() Action
+- **Trigger**: Random interval between 15 and 30 seconds
+- **Logic**:
+  1. Get list of all rooms: ["Living Room", "Kitchen", "Bedroom"].
+  2. Remove the pet's currentRoom from that list.
+  3. Randomly select one of the remaining two rooms.
+  4. Update `Pet.currentRoom` to the selected room.
+
+## 3. Player Actions (User-Triggered Events)
+
+### navigateTo(roomName) Action
+- **Trigger**: User clicks a navigation button (e.g., "Go to Kitchen").
+- **Action**: Update `Player.currentView` to the provided `roomName`.
+
+### feedPet() Action
+- **Conditions**:
+  - `Player.currentView` is "Kitchen".
+  - `Pet.currentRoom` is "Kitchen".
+- **Action**: Trigger a "feeding" animation. (No stat changes needed for this POC.)
+
+### playWithPet() Action
+- **Conditions**:
+  - `Player.currentView` is "Living Room".
+  - `Pet.currentRoom` is "Living Room".
+- **Action**: Initiate the "Hide and Seek" minigame.
+
+### updateRoomLook(prompt) Action
+- **Trigger**: User submits a text prompt in a generation form.
+- **Action**:
+  1. Take the user's prompt.
+  2. Call a generative AI image model using the prompt.
+  3. On success, update `House.rooms[Player.currentView].backgroundImage` with the returned image.
+
+## 4. Core Game Logic & Rendering
+- The background image displayed is always `House.rooms[Player.currentView].backgroundImage`.
+- The pet character is only visible if `Pet.currentRoom === Player.currentView`.
+
+## 5. Minigame: "Hide and Seek"
+- **Start Condition**: Triggered by `playWithPet()`.
+- **Gameplay**:
+  1. Show UI overlay with the message: "Where did I hide?".
+  2. Display three clickable objects in the Living Room (e.g., a couch, a lamp, a rug).
+  3. Randomly choose one object as the pet's hiding spot.
+  4. If the player clicks the correct object, show "You found me!".
+  5. If the player clicks an incorrect object, show "Try again!".
+  6. The game ends after the pet is found.
+
+
