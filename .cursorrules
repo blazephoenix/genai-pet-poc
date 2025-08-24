@@ -70,3 +70,212 @@ AI Rules: Virtual Pet Proof of Concept (v0.2)
   6. The game ends after the pet is found.
 
 
+
+## 6. Technical Implementation Details (Single Page Application)
+
+### 6.1 Stack & App Shell
+- Use a client-side SPA with TypeScript and a component-based UI library (e.g., React 18+). 
+- Enforce strict TypeScript settings and no `any`, no non-null assertions, and no unsafe casts.
+- Prefer `Context + useReducer` for deterministic game state and action handling.
+- Keep a single top-level `GameProvider` that exposes state and dispatch.
+
+### 6.2 TypeScript Types (authoritative)
+```ts
+/** Room names supported by the game. */
+export type RoomName = "Living Room" | "Kitchen" | "Bedroom";
+
+/** Clickable objects for the hide-and-seek minigame. */
+export type HideAndSeekObject = "Couch" | "Lamp" | "Rug";
+
+/** State for each room. backgroundImage must be a valid URL or data URI. */
+export interface RoomState {
+  backgroundImage: string;
+}
+
+/** House state keyed by room. */
+export interface HouseState {
+  rooms: Record<RoomName, RoomState>;
+}
+
+/** Pet state tracks where the pet currently is. */
+export interface PetState {
+  currentRoom: RoomName;
+}
+
+/** Player state tracks what the player is currently viewing. */
+export interface PlayerState {
+  currentView: RoomName;
+}
+
+/** Hide-and-seek minigame state. */
+export interface HideAndSeekState {
+  hidingSpot: HideAndSeekObject;
+  status: "idle" | "playing" | "found";
+  message: string;
+}
+
+/** Root game state. */
+export interface GameState {
+  pet: PetState;
+  player: PlayerState;
+  house: HouseState;
+  minigame: HideAndSeekState | null;
+}
+
+/** Discriminated union of game actions. */
+export type GameAction =
+  | { type: "NAVIGATE"; room: RoomName }
+  | { type: "PET_MOVED"; room: RoomName }
+  | { type: "FEED" }
+  | { type: "PLAY_WITH_PET" }
+  | { type: "START_MINIGAME" }
+  | { type: "GUESS_HIDING_SPOT"; guess: HideAndSeekObject }
+  | { type: "END_MINIGAME" }
+  | { type: "UPDATE_ROOM_LOOK"; room: RoomName; backgroundImage: string };
+```
+
+### 6.3 Initial State (SPA boot)
+```ts
+export const initialGameState: GameState = {
+  pet: { currentRoom: "Living Room" },
+  player: { currentView: "Living Room" },
+  house: {
+    rooms: {
+      "Living Room": { backgroundImage: "/assets/rooms/living-room.jpg" },
+      Kitchen: { backgroundImage: "/assets/rooms/kitchen.jpg" },
+      Bedroom: { backgroundImage: "/assets/rooms/bedroom.jpg" },
+    },
+  },
+  minigame: null,
+};
+```
+
+### 6.4 Reducer Contract
+```ts
+/** Pure reducer; handles all state transitions based on actions. */
+export function gameReducer(state: GameState, action: GameAction): GameState {
+  switch (action.type) {
+    case "NAVIGATE": {
+      return { ...state, player: { currentView: action.room } };
+    }
+    case "PET_MOVED": {
+      return { ...state, pet: { currentRoom: action.room } };
+    }
+    case "FEED": {
+      // Guard: must be in Kitchen and pet in Kitchen
+      const isInKitchen: boolean =
+        state.player.currentView === "Kitchen" && state.pet.currentRoom === "Kitchen";
+      if (!isInKitchen) {
+        return state;
+      }
+      // Triggering animation is a UI concern; reducer remains pure.
+      return state;
+    }
+    case "PLAY_WITH_PET": {
+      const canPlay: boolean =
+        state.player.currentView === "Living Room" && state.pet.currentRoom === "Living Room";
+      if (!canPlay) {
+        return state;
+      }
+      return {
+        ...state,
+        minigame: { hidingSpot: "Couch", status: "idle", message: "" },
+      };
+    }
+    case "START_MINIGAME": {
+      if (state.minigame === null) {
+        return state;
+      }
+      return { ...state, minigame: { ...state.minigame, status: "playing", message: "Where did I hide?" } };
+    }
+    case "GUESS_HIDING_SPOT": {
+      if (state.minigame === null) {
+        return state;
+      }
+      const isCorrect: boolean = action.guess === state.minigame.hidingSpot;
+      return {
+        ...state,
+        minigame: {
+          hidingSpot: state.minigame.hidingSpot,
+          status: isCorrect ? "found" : "playing",
+          message: isCorrect ? "You found me!" : "Try again!",
+        },
+      };
+    }
+    case "END_MINIGAME": {
+      return { ...state, minigame: null };
+    }
+    case "UPDATE_ROOM_LOOK": {
+      return {
+        ...state,
+        house: {
+          rooms: {
+            ...state.house.rooms,
+            [action.room]: { backgroundImage: action.backgroundImage },
+          },
+        },
+      };
+    }
+    default: {
+      return state;
+    }
+  }
+}
+```
+
+### 6.5 Services
+```ts
+/** Schedules autonomous pet movement on a random interval between 15–30 seconds. */
+export interface TimerService {
+  startPetMovement(onMove: (nextRoom: RoomName) => void): () => void; // returns stop function
+}
+
+/** Generates background images for rooms using a generative model. Returns URL or data URI. */
+export interface AIImageService {
+  generateRoomImage(prompt: string, room: RoomName): Promise<string>;
+}
+
+/** Simple persistence layer for local saves. */
+export interface StorageService {
+  save(state: GameState): void;
+  load(): GameState | null;
+  clear(): void;
+}
+
+/** Utility to compute next random delay within inclusive bounds. */
+export function getRandomDelayMs(minMs: number, maxMs: number): number {
+  const clampedMin: number = Math.max(0, Math.floor(minMs));
+  const clampedMax: number = Math.max(clampedMin, Math.floor(maxMs));
+  const range: number = clampedMax - clampedMin;
+  const offset: number = Math.floor(Math.random() * (range + 1));
+  return clampedMin + offset;
+}
+```
+
+### 6.6 Rendering Rules (SPA)
+- The displayed background image is always `house.rooms[state.player.currentView].backgroundImage`.
+- Render the pet sprite only if `state.pet.currentRoom === state.player.currentView`.
+- Components (suggested): `AppShell`, `NavigationBar`, `RoomView`, `PetSprite`, `MinigameOverlay`, `GenerationForm`.
+- `NavigationBar` dispatches `NAVIGATE` with the selected `RoomName`.
+- `GenerationForm` calls `AIImageService.generateRoomImage` and dispatches `UPDATE_ROOM_LOOK` on success.
+
+### 6.7 Minigame Orchestration (UI layer)
+- On `PLAY_WITH_PET`, initialize minigame state and pick a random `hidingSpot` from the three objects.
+- Dispatch `START_MINIGAME` to show overlay with "Where did I hide?".
+- Each object click dispatches `GUESS_HIDING_SPOT` with the guessed object.
+- When status becomes `found`, display "You found me!" and allow `END_MINIGAME` to close overlay.
+
+### 6.8 Error Handling & Validation
+- Validate prompts as non-empty strings before calling `AIImageService`.
+- On image generation failure, surface a user-facing error and do not mutate state.
+- Timer cleanup: always call the stop function on unmount to prevent leaks.
+
+### 6.9 Performance & Persistence
+- Debounce image generation submissions.
+- Persist `GameState` to `localStorage` on meaningful changes; hydrate on boot with validation.
+- Keep reducer pure; handle animations/effects in components using effects.
+
+### 6.10 Testing Guidelines
+- Unit-test `gameReducer` transitions for all `GameAction` variants.
+- Test `getRandomDelayMs` bounds (15–30 seconds for movement timer).
+- UI tests: pet visibility logic, background switching, and minigame happy/edge paths.
